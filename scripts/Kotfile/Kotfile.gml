@@ -18,14 +18,15 @@ function KotfileInit() {
 	tracePrefix         = "[KfTrace]: ";   // string: debug trace prefix
 	errorPrefix         = "[KfError]: ";   // string: exception messages prefix
 	savePadIndex        = 0;               // number: to which pad to save, usually 0 but plz change at runtime.
+	accountIndex        = 0;               // number: NO idea what it's supposed to do???
 	allowImplicitGroups = true;            // bool:   if an async group wasn't started, start and end one implicitly.
 	/* KF CONFIGURATION END */
 	
 	/* KF PRIVATE MEMBERS START */
 	/* all private methods and members are prefixed with __kf */
-	__kfVersion = "1.0.0";
+	__kfVersion = "1.0.1";
 	__kfAuthor = "nkrapivindev";
-	__kfDate = "05.02.2022 16:42 (DD.MM.YYYY, HH:mm 24hr, UTC+5 Asia/Yekaterinburg)";
+	__kfDate = "05.02.2022 21:09 (DD.MM.YYYY, HH:mm 24hr, UTC+5 Asia/Yekaterinburg)";
 	__kfGroups = [];
 	__kfCurrentGroup = undefined;
 	__kfIsSwitch = os_type == os_switch;
@@ -71,6 +72,38 @@ function KotfileInit() {
 		return s;
 	};
 	
+	__kfDispatchGroup = function() {
+		if (groups() < 1) {
+			__kfTrace("There are no async groups left for dispatch.");
+			return -1;	
+		}
+		
+		buffer_async_group_begin(groupName);
+		buffer_async_group_option("slottitle", slotTitle);
+		buffer_async_group_option("subtitle", subTitle);
+		buffer_async_group_option("showdialog", showDialog);
+		buffer_async_group_option("ps_create_backup", psCreateBackup);
+		buffer_async_group_option("savepadindex", savePadIndex);
+		buffer_async_group_option("accountindex", accountIndex);
+		
+		var kfgrp = __kfGroups[@ 0];
+		var kfissave = __kfGroups[@ 0].__kfIsSave;
+		for (var kfi = 0; kfi < array_length(kfgrp.__kfMyFiles); ++kfi) {
+			var kfdat = kfgrp.__kfMyFiles[@ kfi];
+			if (kfissave) {
+				buffer_save_async(kfdat.__kfBuffer, kfdat.__kfFileName, kfdat.__kfFileOffs, kfdat.__kfFileSize);
+			}
+			else {
+				buffer_load_async(kfdat.__kfBuffer, kfdat.__kfFileName, kfdat.__kfFileOffs, kfdat.__kfFileSize);	
+			}
+		}
+		
+		var kfgrpid = buffer_async_group_end();
+		__kfGroups[@ 0].__kfMyId = kfgrpid;
+		
+		return kfgrpid;
+	};
+	
 	if (variable_global_exists("__kfReinitGuard")) {
 		/* ... sigh */
 		__kfThrow("Kotfile has already been initialized, are you using game_restart()?");	
@@ -79,6 +112,35 @@ function KotfileInit() {
 
 	/* KF PUBLIC METHODS START */
 	/* public methods are NOT prefixed */
+	groups = function() {
+		// returns the amount of groups Kotfile has queued,
+		// a value of 0 means it has no groups queued and is completely idle.
+		return array_length(__kfGroups);
+	};
+	
+	isInGroup = function() {
+		// returns `true` if we're currently in startGroup(), `false` otherwise.
+		return !is_undefined(__kfCurrentGroup);	
+	};
+	
+	makeBuff = function(argContentsStringOpt) {
+		// a small helper for making buffers.
+		if (is_undefined(argContentsStringOpt)) {
+			// just make a typical 1,grow,1 buffer
+			return buffer_create(1, buffer_grow, 1);	
+		}
+		else {
+			// make a buffer and write a null-term string to it.
+			var kfbcontents = string(argContentsStringOpt);
+			var kfbsize = string_byte_length(kfbcontents) + 1;
+			// grow since you might append something to it later...
+			var kfb = buffer_create(kfbsize, buffer_grow, 1);
+			buffer_write(kfb, buffer_string, kfbcontents);
+			// the seek position is after the string...
+			return kfb;
+		}
+	};
+	
 	startGroup = function(argIsSaveBoolOpt) {
 		if (!is_undefined(__kfCurrentGroup)) {
 			__kfThrow("Already building an async group...");	
@@ -86,12 +148,6 @@ function KotfileInit() {
 		
 		var kfisSaveGroup = is_undefined(argIsSaveBoolOpt) ? false : bool(argIsSaveBoolOpt);
 		
-		buffer_async_group_begin(groupName);
-		buffer_async_group_option("slottitle", slotTitle);
-		buffer_async_group_option("subtitle", subTitle);
-		buffer_async_group_option("showdialog", showDialog);
-		buffer_async_group_option("ps_create_backup", psCreateBackup);
-		buffer_async_group_option("savepadindex", savePadIndex);
 		__kfTrace("Async group start at {}", [ __kfDateTimer() ]);
 		__kfCurrentGroup = {
 			__kfMyId: -1, // id of the group
@@ -128,9 +184,9 @@ function KotfileInit() {
 		var fname = string(argFileNameString);
 		var foffs = is_undefined(argFileOffsetRealOpt) ?  0 : argFileOffsetRealOpt;
 		var fsize = is_undefined(argFileSizeRealOpt  ) ? -1 : argFileSizeRealOpt;
-		var ffunc = argOnCallMethodOpt;
+		var ffunc = argOnCallMethodOpt; // can be either a method or a script index o_O
 		var fuser = argUserDataOpt; // can be anything...
-		var fbuff = is_undefined(argBufferIndexOpt) ? buffer_create(1, buffer_grow, 1) : argBufferIndexOpt;
+		var fbuff = is_undefined(argBufferIndexOpt) ? makeBuff() : argBufferIndexOpt;
 		var fasid = -1;
 		
 		// if buffer size is -1 and we're saving, just guess...
@@ -144,18 +200,10 @@ function KotfileInit() {
 			__kfFileSize: fsize,
 			__kfOnCall:   ffunc,
 			__kfUserData: fuser,
-			__kfBuffer:   fbuff,
-			__kfBufAsId:  -1
+			__kfIsSave:   kfissave,
+			__kfBuffer:   fbuff
 		};
 		
-		if (kfissave) {
-			fasid = buffer_save_async(kfdat.__kfBuffer, kfdat.__kfFileName, kfdat.__kfFileOffs, kfdat.__kfFileSize);
-		}
-		else {
-			fasid = buffer_load_async(kfdat.__kfBuffer, kfdat.__kfFileName, kfdat.__kfFileOffs, kfdat.__kfFileSize);	
-		}
-		
-		kfdat.__kfBufAsId = fasid;
 		array_push(__kfCurrentGroup.__kfMyFiles, kfdat);
 		
 		if (kfnogroup) {
@@ -171,12 +219,22 @@ function KotfileInit() {
 			__kfThrow("No async group was made to begin with...");
 		}
 		
-		var kfgroupid = buffer_async_group_end();
-		__kfCurrentGroup.__kfMyId = kfgroupid;
-		array_push(__kfGroups, __kfCurrentGroup);
+		/* check if we have no groups currently processing,
+		 * if we do, queue manually
+		 * if we don't, start GM fun, let the Async Load event continue
+		 */
+		var kfneedpush = groups() == 0;
 		
-		/* we're done here */
+		array_push(__kfGroups, __kfCurrentGroup);
 		__kfCurrentGroup = undefined;
+		
+		if (kfneedpush) {
+			__kfDispatchGroup();
+			__kfTrace("Starting group dispatch...");
+		}
+		else {
+			__kfTrace("Queueing group...");	
+		}
 		
 		return self;
 	};
@@ -192,6 +250,7 @@ function KotfileInit() {
 
 /// @description Kotfile: Handles the Asynchronous Save Load event.
 /// @param {Mixed} [argAsyncLoadMapOpt] a ds map id or nothing to use async_load.
+/// @context {KotfileInit}
 function KotfileAsync(argAsyncLoadMapOpt) {
 	var kfm = is_undefined(argAsyncLoadMapOpt) ? async_load : argAsyncLoadMapOpt;
 	var kfid = kfm[? "id"];
@@ -211,7 +270,7 @@ function KotfileAsync(argAsyncLoadMapOpt) {
 	}
 	
 	if (!kfok) {
-		__kfTrace("Async group id {} is not recognized. (outside load thing?)", [ kfid ]);
+		__kfTrace("Async group id={} is not recognized. (outside load thing?)", [ kfid ]);
 		return -1;
 	}
 
@@ -261,6 +320,9 @@ function KotfileAsync(argAsyncLoadMapOpt) {
 	/* clean up the group */
 	__kfTrace("Async group id {} DONE at array index {}.", [ kfid, kfarrind ]);
 	array_delete(__kfGroups, kfarrind, 1);
+	
+	/* continue with the next group...? */
+	__kfDispatchGroup();
 	
 	/* return the group id we just handled. */
 	return kfid;

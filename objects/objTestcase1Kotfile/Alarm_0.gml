@@ -26,15 +26,6 @@ if (!instance_exists(kf)) {
  * ) -> returns kotfile object
  */
 
-makeBuff = function(str) {
-	var s = buffer_create(string_byte_length(str) + 1, buffer_fixed, 1);
-	buffer_write(s, buffer_string, str);
-	buffer_seek(s, buffer_seek_start, 0);
-	return s;
-};
-
-var dummybuff = makeBuff("va-11 hall-a is the best gamemaker game ever made.");
-
 onSave = function(args) {
 	show_debug_message("---[[[!!! CALLBACK HELL (onSave) !!!]]]---");
 	show_debug_message("File saved! " + args.fileName);
@@ -58,19 +49,19 @@ at the same time, since it'll do separate async groups for every file.
 kf.
 queueFile(
 	"va11halla.sav",
+	true,
+	onSave,
+	kf.makeBuff("va-11 hall-a is the best gamemaker game ever made.")
+	// if you don't provide a buffer for Save callbacks
+	// it'll essentially act as an async delete :p (since a 1byte 0x00 buffer will be made)
+	// can be p. useful.
+).
+queueFile(
+	"va11halla.sav",
 	false,
 	onLoad
 	// you don't have to provide a buffer for Load callbacks
 	// a (1,buffer_grow,1) will be created.
-).
-queueFile(
-	"va11halla.sav",
-	true,
-	onSave,
-	dummybuff
-	// if you don't provide a buffer for Save callbacks
-	// it'll essentially act as an async delete :p (since a 1byte 0x00 buffer will be made)
-	// can be p. useful.
 );
 
 /*
@@ -91,29 +82,24 @@ queueFile(
 	"explicit.sav",
 	true,
 	onSave,
-	makeBuff("This is a demo of explicit saving.")
+	kf.makeBuff("This is a demo of explicit saving.")
 ).
 queueFile(
 	"explicit2.sav",
 	true,
-	function(args) {
-		kf.
-		startGroup(). // we're just loading
-		queueFile(
-			"explicit.sav",
-			false,
-			onLoad // shut up feather, it is defined.
-		).
-		queueFile(
-			"explicit2.sav",
-			false,
-			onLoad
-		).
-		endGroup();
-		
-		return onSave(args);
-	},
-	makeBuff("pug")
+	onSave,
+	kf.makeBuff("pug")
+).
+endGroup().
+startGroup(). // we're just loading
+queueFile(
+	"explicit.sav",
+	false,
+	onLoad // shut up feather, it is defined.
+).
+queueFile(
+	"explicit2.sav",
+	false,
+	onLoad
 ).
 endGroup();
-
