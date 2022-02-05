@@ -18,15 +18,15 @@ function KotfileInit() {
 	tracePrefix         = "[KfTrace]: ";   // string: debug trace prefix
 	errorPrefix         = "[KfError]: ";   // string: exception messages prefix
 	savePadIndex        = 0;               // number: to which pad to save, usually 0 but plz change at runtime.
-	accountIndex        = 0;               // number: NO idea what it's supposed to do???
+	accountIndex        = -1;              // number: NO idea what it's supposed to do???
 	allowImplicitGroups = true;            // bool:   if an async group wasn't started, start and end one implicitly.
 	/* KF CONFIGURATION END */
 	
 	/* KF PRIVATE MEMBERS START */
 	/* all private methods and members are prefixed with __kf */
-	__kfVersion = "1.0.1";
+	__kfVersion = "1.0.2";
 	__kfAuthor = "nkrapivindev";
-	__kfDate = "05.02.2022 21:09 (DD.MM.YYYY, HH:mm 24hr, UTC+5 Asia/Yekaterinburg)";
+	__kfDate = "05.02.2022 23:00 (DD.MM.YYYY, HH:mm 24hr, UTC+5 Asia/Yekaterinburg)";
 	__kfGroups = [];
 	__kfCurrentGroup = undefined;
 	__kfIsSwitch = os_type == os_switch;
@@ -59,10 +59,11 @@ function KotfileInit() {
 	};
 	
 	__kfTrace = function(argMsgString, argArgsArrayOpt) {
-		if (!enableTrace) return;
+		if (!enableTrace) return false;
 		var s = __kfFormat(argMsgString, argArgsArrayOpt);
 		s = string_insert(string(tracePrefix), s, 1);
 		__kfOutputter(s);
+		return true;
 	};
 	
 	__kfThrow = function(argMsgString, argArgsArrayOpt) {
