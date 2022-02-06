@@ -1,6 +1,7 @@
 {
   "resources": [
     {"id":{"name":"objTestcase1Kotfile","path":"objects/objTestcase1Kotfile/objTestcase1Kotfile.yy",},"order":1,},
+    {"id":{"name":"TextFileWrite","path":"scripts/TextFileWrite/TextFileWrite.yy",},"order":0,},
     {"id":{"name":"objKotfile","path":"objects/objKotfile/objKotfile.yy",},"order":0,},
     {"id":{"name":"Kotfile","path":"scripts/Kotfile/Kotfile.yy",},"order":1,},
     {"id":{"name":"rmTestcaseKotfile","path":"rooms/rmTestcaseKotfile/rmTestcaseKotfile.yy",},"order":0,},
@@ -29,6 +30,7 @@
   "Folders": [
     {"folderPath":"folders/Kotfile Testcase(s).yy","order":10,"resourceVersion":"1.0","name":"Kotfile Testcase(s)","tags":[],"resourceType":"GMFolder",},
     {"folderPath":"folders/Kotfile Stuff.yy","order":11,"resourceVersion":"1.0","name":"Kotfile Stuff","tags":[],"resourceType":"GMFolder",},
+    {"folderPath":"folders/Kotfile Extras.yy","order":12,"resourceVersion":"1.0","name":"Kotfile Extras","tags":[],"resourceType":"GMFolder",},
   ],
   "AudioGroups": [
     {"targets":-1,"resourceVersion":"1.3","name":"audiogroup_default","resourceType":"GMAudioGroup",},

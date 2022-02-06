@@ -103,3 +103,28 @@ queueFile(
 	onLoad
 ).
 endGroup();
+
+
+// text file demo:
+kf.
+queueFile(
+	"textfile.txt",
+	true,
+	onSave,
+	new TextFileWrite()
+		.writeString("Hello, here is a funny number: ")
+		.writeReal(1337.42069)
+		.writeLn()
+		.writeString("Oh and here's a tricky one: ")
+		.writeReal(real("0." + "1") + real("0" + ".2"))
+		.writeLn()
+		.writeString("How's it going?")
+		.writeLn()
+		.writeString("Remember to take frequent breaks! Or you might burn out.")
+		.writeLn()
+		// remember to always end your text files with a writeLn() call.
+		// this also applies to regular file_text_* functions btw.
+		.toBuffer()
+		// the buffer will not be automatically freed by TextFileWrite()!
+		// it will be freed by kotfile in the callback.
+);

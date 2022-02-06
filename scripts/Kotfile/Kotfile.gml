@@ -24,9 +24,9 @@ function KotfileInit() {
 	
 	/* KF PRIVATE MEMBERS START */
 	/* all private methods and members are prefixed with __kf */
-	__kfVersion = "1.0.2";
+	__kfVersion = "1.0.3";
 	__kfAuthor = "nkrapivindev";
-	__kfDate = "05.02.2022 23:00 (DD.MM.YYYY, HH:mm 24hr, UTC+5 Asia/Yekaterinburg)";
+	__kfDate = "06.02.2022 15:50 (DD.MM.YYYY, HH:mm 24hr, UTC+5 Asia/Yekaterinburg)";
 	__kfGroups = [];
 	__kfCurrentGroup = undefined;
 	__kfIsSwitch = os_type == os_switch;
@@ -190,7 +190,7 @@ function KotfileInit() {
 		var fbuff = is_undefined(argBufferIndexOpt) ? makeBuff() : argBufferIndexOpt;
 		var fasid = -1;
 		
-		// if buffer size is -1 and we're saving, just guess...
+		// if buffer size is -1 (or 0, which is nonsense) and we're saving, just guess...
 		if (kfissave && fsize < 1) {
 			fsize = buffer_get_size(fbuff) - foffs;	
 		}
@@ -243,7 +243,7 @@ function KotfileInit() {
 	
 	/* KF INIT CODE START */
 	/* you usually shouldn't touch this... */
-	__kfTrace("Welcome to Kotfile, this is version {} made on {}.", [ __kfVersion, __kfDate ]);
+	__kfTrace("Welcome to Kotfile by {}, this is version {} made on {}.", [ __kfAuthor, __kfVersion, __kfDate ]);
 	global.__kfReinitGuard = __kfDateTimer();
 	return "<kf dummy return, please ignore...>";
 	/* KF INIT CODE END */
