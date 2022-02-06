@@ -76,7 +76,10 @@ so be mind of the order you're doing all of this ;-;
 
 yoyo why
 */
+var prev = { val: undefined }; // will receive the previous value by-ref.
 kf.
+// ALL GROUP OPTIONS MUST BE SET BEFORE STARTING THE GROUP!!!
+setGroupOption("groupName", "funnygroup", prev).
 startGroup(true). // we're saving
 queueFile(
 	"explicit.sav",
@@ -102,7 +105,9 @@ queueFile(
 	false,
 	onLoad
 ).
-endGroup();
+endGroup()
+// restore the previous setting:
+.setGroupOption("groupName", prev.val);
 
 
 // text file demo:

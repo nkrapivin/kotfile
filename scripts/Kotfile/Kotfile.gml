@@ -8,28 +8,30 @@ function Kotfile() {
 /// @description Kotfile: Must be called once in some persistent object to initialize Kotfile.
 function KotfileInit() {
 	/* KF CONFIGURATION START */
-	/* please edit this to your liking! */
-	enableTrace         = true;            // bool: enable debug trace or not?
+	/* please edit this to your liking! you cannot change those at runtime legally (and why would you?) */
+	enableTrace         = true;            // bool:   enable debug trace or not? useful if you're dev-ing games for PS.
+	allowImplicitGroups = true;            // bool:   if an async group wasn't started, start and end one implicitly.
+	tracePrefix         = "[KfTrace]: ";   // string: debug trace prefix
+	errorPrefix         = "[KfError]: ";   // string: exception messages prefix
+	/* these settings can be changed with setGroupOption() as well: */
 	groupName           = "KotfileDefGrp"; // string: name of the async group
 	slotTitle           = "KotfileSavSlt"; // string: slot title
 	subTitle            = "KotfileSubTlt"; // string: slot subtitle
 	showDialog          = false;           // bool:   do show save selection dialog?
 	psCreateBackup      = false;           // bool:   (os_ps5 os_ps4 only), ask the system to do a backup?
-	tracePrefix         = "[KfTrace]: ";   // string: debug trace prefix
-	errorPrefix         = "[KfError]: ";   // string: exception messages prefix
-	savePadIndex        = 0;               // number: to which pad to save, usually 0 but plz change at runtime.
-	accountIndex        = -1;              // number: NO idea what it's supposed to do???
-	allowImplicitGroups = true;            // bool:   if an async group wasn't started, start and end one implicitly.
+	savePadIndex        = -1;              // number: to which pad to save, usually 0 but plz change at runtime. -1 means don't set.
+	accountIndex        = -1;              // number: NO idea what it's supposed to do??? -1 means don't set.
 	/* KF CONFIGURATION END */
 	
 	/* KF PRIVATE MEMBERS START */
 	/* all private methods and members are prefixed with __kf */
-	__kfVersion = "1.0.3";
+	__kfVersion = "1.0.4";
 	__kfAuthor = "nkrapivindev";
-	__kfDate = "06.02.2022 15:50 (DD.MM.YYYY, HH:mm 24hr, UTC+5 Asia/Yekaterinburg)";
+	__kfDate = "07.02.2022 0:40 (DD.MM.YYYY, HH:mm 24hr, UTC+5 Asia/Yekaterinburg)";
 	__kfGroups = [];
 	__kfCurrentGroup = undefined;
 	__kfIsSwitch = os_type == os_switch;
+	__kfIsPSOrbEro = os_type == os_ps4 || os_type == os_ps5; // ORBIS and Prospero! They're very similar.
 	/* KF PRIVATE MEMBERS END */
 	
 	/* KF PRIVATE METHODS START */
@@ -79,15 +81,37 @@ function KotfileInit() {
 			return -1;	
 		}
 		
-		buffer_async_group_begin(groupName);
-		buffer_async_group_option("slottitle", slotTitle);
-		buffer_async_group_option("subtitle", subTitle);
-		buffer_async_group_option("showdialog", showDialog);
-		buffer_async_group_option("ps_create_backup", psCreateBackup);
-		buffer_async_group_option("savepadindex", savePadIndex);
-		buffer_async_group_option("accountindex", accountIndex);
-		
 		var kfgrp = __kfGroups[@ 0];
+		var kfmyops = kfgrp.__kfMyGroupOptions;
+		
+		buffer_async_group_begin(kfmyops.__kfGroupName);
+		
+		// those options are required for every group:
+		buffer_async_group_option("slottitle", kfmyops.__kfSlotTitle);
+		buffer_async_group_option("subtitle", kfmyops.__kfSubTitle);
+		buffer_async_group_option("showdialog", kfmyops.__kfShowDialog);
+		__kfTrace("Saving to {}", [ kfmyops.__kfSlotTitle ]);
+		
+		if (__kfIsPSOrbEro) {
+			if (string_count(" ", kfmyops.__kfSlotTitle) > 0 || string_count(" ", kfmyops.__kfSubTitle) > 0) {
+				__kfTrace("WARNING: PS4 and PS5 are very tricky when it comes to spaces in titles!");
+				// ideally this should be a __kfThrow but uhhh not sure about that...
+			}
+			
+			buffer_async_group_option("ps_create_backup", kfmyops.__kfPSCreateBackup);
+			__kfTrace("Setting PS backup option to={}", [ kfmyops.__kfPSCreateBackup ]);
+		}
+		
+		if (kfmyops.__kfSavePadIndex > -1) {
+			buffer_async_group_option("savepadindex", kfmyops.__kfSavePadIndex);
+			__kfTrace("Setting save pad index to={}", [ kfmyops.__kfSavePadIndex ]);
+		}
+		
+		if (kfmyops.__kfAccountIndex > -1) {
+			buffer_async_group_option("accountindex", kfmyops.__kfAccountIndex);
+			__kfTrace("Setting account index to={}", [ kfmyops.__kfAccountIndex ]);
+		}
+		
 		var kfissave = __kfGroups[@ 0].__kfIsSave;
 		for (var kfi = 0; kfi < array_length(kfgrp.__kfMyFiles); ++kfi) {
 			var kfdat = kfgrp.__kfMyFiles[@ kfi];
@@ -153,8 +177,85 @@ function KotfileInit() {
 		__kfCurrentGroup = {
 			__kfMyId: -1, // id of the group
 			__kfIsSave: kfisSaveGroup,
-			__kfMyFiles: [ /* queueFile() stuff will be here */ ]
+			__kfMyFiles: [ /* queueFile() stuff will be here */ ],
+			__kfMyGroupOptions: {
+				__kfGroupName:      groupName,
+				__kfSlotTitle:      slotTitle,
+				__kfSubTitle:       subTitle,
+				__kfShowDialog:     showDialog,
+				__kfPSCreateBackup: psCreateBackup,
+				__kfSavePadIndex:   savePadIndex,
+				__kfAccountIndex:   accountIndex
+			}
 		};
+		
+		return self;
+	};
+	
+	setGroupOption = function(argOptionNameString, argOptionValueAny, argPreviousValueRefOpt) {
+		if (is_undefined(argOptionNameString)) {
+			__kfThrow("Required argument argOptionNameString is undefined.");
+		}
+		
+		if (is_undefined(argOptionValueAny)) {
+			__kfThrow("Required argument argOptionValueAny is undefined.");
+		}
+		
+		var kfdoprev = !is_undefined(argPreviousValueRefOpt);
+		
+		var kfgroupopt = string(argOptionNameString);
+		
+		__kfTrace("Overriding group option {} to {}.", [ kfgroupopt, string(argOptionValueAny) ]);
+		
+		switch (kfgroupopt) {
+			case "groupName": {
+				if (kfdoprev) argPreviousValueRefOpt.val = groupName;
+				groupName = string(argOptionValueAny);
+				break;
+			}
+			
+			case "slotTitle": {
+				if (kfdoprev) argPreviousValueRefOpt.val = slotTitle;
+				slotTitle = string(argOptionValueAny);
+				break;
+			}
+			
+			case "subTitle": {
+				if (kfdoprev) argPreviousValueRefOpt.val = subTitle;
+				subTitle = string(argOptionValueAny);
+				break;
+			}
+			
+			case "showDialog": {
+				if (kfdoprev) argPreviousValueRefOpt.val = showDialog;
+				showDialog = bool(argOptionValueAny);
+				break;
+			}
+			
+			case "psCreateBackup": {
+				if (kfdoprev) argPreviousValueRefOpt.val = psCreateBackup;
+				psCreateBackup = bool(argOptionValueAny);
+				break;
+			}
+			
+			case "savePadIndex": {
+				if (kfdoprev) argPreviousValueRefOpt.val = savePadIndex;
+				savePadIndex = real(argOptionValueAny);
+				break;
+			}
+			
+			case "accountIndex": {
+				if (kfdoprev) argPreviousValueRefOpt.val = accountIndex;
+				accountIndex = real(argOptionValueAny);
+				break;	
+			}
+			
+			default: {
+				// uhhh what do I even set here...? whoops...
+				throw __kfThrow("Unrecognized group option = {}", [ kfgroupopt ]);
+				break;
+			}
+		}
 		
 		return self;
 	};
@@ -310,7 +411,7 @@ function KotfileAsync(argAsyncLoadMapOpt) {
 		if (__kfIsSwitch) {
 			/*
 				For those who don't know, this function takes no arguments
-				and returns nn::Result's error code (I think?)
+				and always returns -1 lmfao
 				Needed on a Switch after every save event to flush the journal to the sd card (and cloud save)
 			*/
 			var kfswitchcommitres = switch_save_data_commit();
